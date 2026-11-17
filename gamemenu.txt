@@ -1,0 +1,26 @@
+======= MayDay-404 Game Menu =======
+01. Assign Runway
+02. Reroute Flight
+03. Process Landing
+04. Manual Spawn Normal Flight
+05. Manual Spawn Emergency
+06. Declare Emergency Priority
+07. Clear War Aircraft
+08. Counter Cyber Attack
+09. Intercept Hostile
+10. Counter Hijack
+11. Medical Priority Landing
+12. Weather Reroute
+13. View Pending Arrivals (free)
+14. View Crew (free)
+15. View Flight Records (free)
+16. View Airspace Network (free)
+17. Radar Sweep (BFS/DFS)
+18. Compute Radar MST
+19. Search Missing Flight
+20. Undo Last Command
+21. Redo Last Command
+22. Compare BST vs AVL Heights (free)
+23. End Turn / Advance Tick
+24. Exit to Main Menu
+====================================

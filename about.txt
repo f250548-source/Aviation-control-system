@@ -1,0 +1,9 @@
+MayDay-404 - Air Traffic Control Simulation
+University Data Structures Course Project
+
+You are the Chief Radar Officer (CRO).
+Manage corridors, emergencies, missing flights and credibility
+across a 30-tick shift. Every wrong call costs the tower.
+
+Modules: Registration, Hash Table, Queues/Heaps, Undo Stack,
+BST/AVL, Graphs, BFS/DFS, Dijkstra, Kruskal MST, Game Engine.
