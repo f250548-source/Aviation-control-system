@@ -1,0 +1,6 @@
+# Scenario spawn hints (tick event callsign sector extra)
+3 NORMAL MD301 Syntax_Sector none
+6 HIJACK MD302 Cache_Fly Dart
+9 CYBER MD303 Air_Segment Phantom
+12 WAR MD304 Restricted_Zone NullAir
+15 MISSING MH370 Restricted_Zone search
