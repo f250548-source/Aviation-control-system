@@ -6,210 +6,111 @@
 #include <string>
 using namespace std;
 
-// AVL node keyed by callsign
+// ============================================================================
+// Module 5 (Person 2): AVLFlight - self-balancing AVL tree of active flights
+//
+// Same ordering (callsign), same public interface and same non-owning
+// flight pointers as bst_flight. After every insert/remove each node on the
+// path back to the root is rebalanced, so |balance factor| <= 1 everywhere and
+// the height stays O(log n) even when callsigns arrive in alphabetical order.
+//
+// OWNERSHIP: only avl_node objects are owned. Flights belong to the registry
+// and are never deleted by this tree.
+//
+// Height convention: nodes on the longest path (empty = 0, leaf = 1).
+// Balance factor = height(left) - height(right).
+// ============================================================================
+
 struct avl_node {
-    flight data;
-    int height;
+    string callsign;      // search key (own copy)
+    flight* flight_ref;   // non-owning pointer to the registry's flight
+    int height;           // height of the subtree rooted here (leaf = 1)
     avl_node* left;
     avl_node* right;
 };
 
-// Person 2 stub: AVL tree of flights
 class avl_flight {
 private:
     avl_node* root;
+    int node_count;
 
-    int node_height(avl_node* node) {
-        if (node == 0) {
-            return 0;
-        }
-        return node->height;
-    }
+    // How many times each rebalancing case has fired (for demos/tests)
+    int left_left_count;
+    int right_right_count;
+    int left_right_count;
+    int right_left_count;
 
-    int max_of(int a, int b) {
-        if (a > b) {
-            return a;
-        }
-        return b;
-    }
+    // ---- Height / balance helpers ----
+    int get_height(avl_node* node);
+    int balance_factor(avl_node* node);
+    void update_height(avl_node* node);
 
-    void update_height(avl_node* node) {
-        if (node == 0) {
-            return;
-        }
-        node->height = 1 + max_of(node_height(node->left), node_height(node->right));
-    }
+    // ---- Rotations ----
+    avl_node* rotate_left(avl_node* node);         // fixes Right-Right
+    avl_node* rotate_right(avl_node* node);        // fixes Left-Left
+    avl_node* rotate_left_right(avl_node* node);   // fixes Left-Right
+    avl_node* rotate_right_left(avl_node* node);   // fixes Right-Left
 
-    int balance_factor(avl_node* node) {
-        if (node == 0) {
-            return 0;
-        }
-        return node_height(node->left) - node_height(node->right);
-    }
+    // Pick and apply the correct rotation case for this node
+    avl_node* rebalance(avl_node* node);
 
-    avl_node* rotate_right(avl_node* y) {
-        avl_node* x = y->left;
-        avl_node* t2 = x->right;
-        x->right = y;
-        y->left = t2;
-        update_height(y);
-        update_height(x);
-        return x;
-    }
+    // ---- Recursive helpers ----
+    avl_node* insert_node(avl_node* node, flight* new_flight, bool& inserted);
+    avl_node* remove_node(avl_node* node, string callsign, bool& removed);
+    avl_node* search_node(avl_node* node, string callsign);
+    avl_node* find_min(avl_node* node);
+    void inorder_node(avl_node* node);
+    int inorder_collect(avl_node* node, string* output, int capacity, int filled);
+    int check_node(avl_node* node, const string* lower, const string* upper, bool& ok);
+    void destroy(avl_node* node);
 
-    avl_node* rotate_left(avl_node* x) {
-        avl_node* y = x->right;
-        avl_node* t2 = y->left;
-        y->left = x;
-        x->right = t2;
-        update_height(x);
-        update_height(y);
-        return y;
-    }
-
-    avl_node* rebalance(avl_node* node) {
-        update_height(node);
-        int balance = balance_factor(node);
-        if (balance > 1 && balance_factor(node->left) >= 0) {
-            return rotate_right(node);
-        }
-        if (balance > 1 && balance_factor(node->left) < 0) {
-            node->left = rotate_left(node->left);
-            return rotate_right(node);
-        }
-        if (balance < -1 && balance_factor(node->right) <= 0) {
-            return rotate_left(node);
-        }
-        if (balance < -1 && balance_factor(node->right) > 0) {
-            node->right = rotate_right(node->right);
-            return rotate_left(node);
-        }
-        return node;
-    }
-
-    avl_node* insert_node(avl_node* node, flight* f) {
-        if (node == 0) {
-            avl_node* created = new avl_node;
-            created->data = *f;
-            created->data.next = 0;
-            created->left = 0;
-            created->right = 0;
-            created->height = 1;
-            return created;
-        }
-        if (f->callsign < node->data.callsign) {
-            node->left = insert_node(node->left, f);
-        } else if (f->callsign > node->data.callsign) {
-            node->right = insert_node(node->right, f);
-        } else {
-            return node;
-        }
-        return rebalance(node);
-    }
-
-    avl_node* find_min(avl_node* node) {
-        while (node != 0 && node->left != 0) {
-            node = node->left;
-        }
-        return node;
-    }
-
-    avl_node* remove_node(avl_node* node, string callsign) {
-        if (node == 0) {
-            return 0;
-        }
-        if (callsign < node->data.callsign) {
-            node->left = remove_node(node->left, callsign);
-        } else if (callsign > node->data.callsign) {
-            node->right = remove_node(node->right, callsign);
-        } else {
-            if (node->left == 0 || node->right == 0) {
-                avl_node* temp = node->left;
-                if (temp == 0) {
-                    temp = node->right;
-                }
-                delete node;
-                return temp;
-            }
-            avl_node* successor = find_min(node->right);
-            node->data = successor->data;
-            node->right = remove_node(node->right, successor->data.callsign);
-        }
-        if (node == 0) {
-            return 0;
-        }
-        return rebalance(node);
-    }
-
-    avl_node* search_node(avl_node* node, string callsign) {
-        if (node == 0) {
-            return 0;
-        }
-        if (callsign == node->data.callsign) {
-            return node;
-        }
-        if (callsign < node->data.callsign) {
-            return search_node(node->left, callsign);
-        }
-        return search_node(node->right, callsign);
-    }
-
-    void inorder_node(avl_node* node) {
-        if (node == 0) {
-            return;
-        }
-        inorder_node(node->left);
-        cout << node->data.callsign << " ";
-        inorder_node(node->right);
-    }
-
-    void destroy(avl_node* node) {
-        if (node == 0) {
-            return;
-        }
-        destroy(node->left);
-        destroy(node->right);
-        delete node;
-    }
+    // Copying is disabled (would share nodes and cause double deletes)
+    avl_flight(const avl_flight& other);
+    avl_flight& operator=(const avl_flight& other);
 
 public:
-    avl_flight() {
-        root = 0;
-    }
+    avl_flight();
+    ~avl_flight();
 
-    ~avl_flight() {
-        destroy(root);
-        root = 0;
-    }
+    // Same contract as bst_flight::insert (duplicates ignored, returns false)
+    bool insert(flight* new_flight);
 
-    void insert(flight* f) {
-        if (f == 0) {
-            return;
-        }
-        root = insert_node(root, f);
-    }
+    // Flight with this callsign or 0 (null)
+    flight* search(string callsign);
 
-    flight* search(string callsign) {
-        avl_node* node = search_node(root, callsign);
-        if (node == 0) {
-            return 0;
-        }
-        return &node->data;
-    }
+    // AVL deletion with rebalancing; never deletes the flight record
+    bool remove(string callsign);
 
-    void remove(string callsign) {
-        root = remove_node(root, callsign);
-    }
+    // Print callsigns alphabetically
+    void inorder_traversal();
 
-    void inorder_traversal() {
-        cout << "AVL inorder: ";
-        inorder_node(root);
-        cout << endl;
-    }
+    // Copy callsigns alphabetically into output; returns count written
+    int inorder_callsigns(string* output, int capacity);
 
-    int height() {
-        return node_height(root);
-    }
+    // Height in nodes (0 for empty)
+    int height();
+
+    int size();
+
+    // Callsign stored at the root ("" if empty) - lets tests see rotations
+    string root_callsign();
+
+    // True if ordering, stored heights and every balance factor are valid
+    bool is_valid_avl();
+
+    // Number of rotations performed for "LL", "RR", "LR" or "RL"
+    int get_rotation_count(string rotation_case);
+
+    // Free every node (flights untouched) and leave an empty tree
+    void destroy_tree();
 };
+
+// Name used in the project brief
+typedef avl_flight AVLFlight;
+
+// Module 5 demonstration: insert 15 alphabetically ordered callsigns into a
+// BST and an AVL tree and print both heights side by side. Self-contained
+// (uses its own temporary flights), so game_engine option 22 can call it.
+void compare_bst_avl_heights_demo();
 
 #endif
