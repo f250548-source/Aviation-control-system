@@ -6,156 +6,85 @@
 #include <string>
 using namespace std;
 
-// BST node keyed by callsign
+// ============================================================================
+// Module 4 (Person 2): BSTFlight - Binary Search Tree of active flights
+//
+// Ordered by callsign, so an inorder traversal prints an alphabetical manifest
+// (the hash table gives fast lookups but no ordering).
+//
+// OWNERSHIP: the tree owns only its bst_node objects. The flight records belong
+// to Person 1's registration list. Removing or destroying a node NEVER deletes
+// the flight it points to.
+//
+// Each node keeps its OWN copy of the callsign as the key. game_engine removes a
+// landed flight from the registry (which deletes it) before removing it from the
+// trees, so tree operations must never need to read through flight_ref to
+// compare keys.
+//
+// Height convention: number of NODES on the longest root-to-leaf path
+// (empty tree = 0, single node = 1). AVLFlight uses the same convention.
+// ============================================================================
+
 struct bst_node {
-    flight data;
+    string callsign;      // search key (copied, so it stays valid on its own)
+    flight* flight_ref;   // non-owning pointer to the registry's flight record
     bst_node* left;
     bst_node* right;
 };
 
-// Person 2 stub: binary search tree of flights
 class bst_flight {
 private:
     bst_node* root;
+    int node_count;
 
-    // Recursive insert
-    bst_node* insert_node(bst_node* node, flight* f) {
-        if (node == 0) {
-            bst_node* created = new bst_node;
-            created->data = *f;
-            created->data.next = 0;
-            created->left = 0;
-            created->right = 0;
-            return created;
-        }
-        if (f->callsign < node->data.callsign) {
-            node->left = insert_node(node->left, f);
-        } else if (f->callsign > node->data.callsign) {
-            node->right = insert_node(node->right, f);
-        }
-        return node;
-    }
+    // Recursive helpers (each works on one subtree)
+    bst_node* insert_node(bst_node* node, flight* new_flight, bool& inserted);
+    bst_node* search_node(bst_node* node, string callsign);
+    bst_node* find_min(bst_node* node);
+    bst_node* remove_node(bst_node* node, string callsign, bool& removed);
+    void inorder_node(bst_node* node);
+    int inorder_collect(bst_node* node, string* output, int capacity, int filled);
+    int height_node(bst_node* node);
+    void destroy(bst_node* node);
 
-    // Recursive search
-    bst_node* search_node(bst_node* node, string callsign) {
-        if (node == 0) {
-            return 0;
-        }
-        if (callsign == node->data.callsign) {
-            return node;
-        }
-        if (callsign < node->data.callsign) {
-            return search_node(node->left, callsign);
-        }
-        return search_node(node->right, callsign);
-    }
-
-    // Find minimum node in subtree
-    bst_node* find_min(bst_node* node) {
-        while (node != 0 && node->left != 0) {
-            node = node->left;
-        }
-        return node;
-    }
-
-    // Recursive remove
-    bst_node* remove_node(bst_node* node, string callsign) {
-        if (node == 0) {
-            return 0;
-        }
-        if (callsign < node->data.callsign) {
-            node->left = remove_node(node->left, callsign);
-        } else if (callsign > node->data.callsign) {
-            node->right = remove_node(node->right, callsign);
-        } else {
-            if (node->left == 0) {
-                bst_node* right_child = node->right;
-                delete node;
-                return right_child;
-            }
-            if (node->right == 0) {
-                bst_node* left_child = node->left;
-                delete node;
-                return left_child;
-            }
-            bst_node* successor = find_min(node->right);
-            node->data = successor->data;
-            node->right = remove_node(node->right, successor->data.callsign);
-        }
-        return node;
-    }
-
-    // In-order print
-    void inorder_node(bst_node* node) {
-        if (node == 0) {
-            return;
-        }
-        inorder_node(node->left);
-        cout << node->data.callsign << " ";
-        inorder_node(node->right);
-    }
-
-    // Height helper
-    int height_node(bst_node* node) {
-        if (node == 0) {
-            return 0;
-        }
-        int left_h = height_node(node->left);
-        int right_h = height_node(node->right);
-        if (left_h > right_h) {
-            return left_h + 1;
-        }
-        return right_h + 1;
-    }
-
-    // Free tree
-    void destroy(bst_node* node) {
-        if (node == 0) {
-            return;
-        }
-        destroy(node->left);
-        destroy(node->right);
-        delete node;
-    }
+    // Copying would make two trees share nodes (double delete), so it is disabled
+    bst_flight(const bst_flight& other);
+    bst_flight& operator=(const bst_flight& other);
 
 public:
-    bst_flight() {
-        root = 0;
-    }
+    bst_flight();
+    ~bst_flight();
 
-    ~bst_flight() {
-        destroy(root);
-        root = 0;
-    }
+    // Insert a flight pointer keyed by its callsign.
+    // Returns false for a null pointer or a callsign already in the tree
+    // (duplicates are ignored; the original entry is kept).
+    bool insert(flight* new_flight);
 
-    void insert(flight* f) {
-        if (f == 0) {
-            return;
-        }
-        root = insert_node(root, f);
-    }
+    // Return the flight with this callsign, or 0 (null) if not present
+    flight* search(string callsign);
 
-    flight* search(string callsign) {
-        bst_node* node = search_node(root, callsign);
-        if (node == 0) {
-            return 0;
-        }
-        return &node->data;
-    }
+    // Remove the node for this callsign (leaf / one child / two children).
+    // Returns false if the callsign is not in the tree. Never deletes the flight.
+    bool remove(string callsign);
 
-    void remove(string callsign) {
-        root = remove_node(root, callsign);
-    }
+    // Print callsigns in alphabetical order
+    void inorder_traversal();
 
-    void inorder_traversal() {
-        cout << "BST inorder: ";
-        inorder_node(root);
-        cout << endl;
-    }
+    // Copy callsigns in alphabetical order into output[0..capacity-1];
+    // returns how many were written (used by tests and demos)
+    int inorder_callsigns(string* output, int capacity);
 
-    int height() {
-        return height_node(root);
-    }
+    // Height in nodes (0 for an empty tree), computed recursively
+    int height();
+
+    // Number of nodes currently stored
+    int size();
+
+    // Free every node (flights untouched) and leave an empty tree
+    void destroy_tree();
 };
+
+// Name used in the project brief
+typedef bst_flight BSTFlight;
 
 #endif

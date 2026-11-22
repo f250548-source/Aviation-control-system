@@ -2,7 +2,7 @@
 REM Build MayDay-404 with the Visual Studio developer compiler (cl)
 REM Run from "x64 Native Tools Command Prompt for VS" OR after vcvars64.bat
 
-set SRC=main.cpp utils.cpp menu.cpp radar_mst.cpp game_engine.cpp
+set SRC=main.cpp utils.cpp menu.cpp radar_mst.cpp game_engine.cpp bst_flight.cpp avl_flight.cpp space_graph.cpp radar_sweep.cpp route_finder.cpp
 set OUT=mayday404.exe
 
 echo Compiling MayDay-404...
