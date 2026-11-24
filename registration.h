@@ -42,12 +42,20 @@ public:
 
     // Add a flight to the front of the list
     void add_flight(flight* new_flight) {
-        if (new_flight == 0) {
+        if (new_flight == nullptr)
             return;
+        new_flight->next = nullptr;
+        if (flight_head == nullptr) {
+            flight_head = new_flight;
         }
-        new_flight->next = flight_head;
-        flight_head = new_flight;
-        flight_count = flight_count + 1;
+        else {
+            flight* current = flight_head;
+            while (current->next != nullptr) {
+                current = current->next;
+            }
+            current->next = new_flight;
+        }
+        flight_count++;
     }
 
     // Remove a flight by callsign; returns true if found
@@ -73,7 +81,13 @@ public:
 
     // Stub: advance status fields for all flights
     void update_all_flights() {
-        // Teammate fills real fuel/status logic
+        flight* current = flight_head;
+        while (current != nullptr) {
+            if (current->status == "ACTIVE" && current->fuel_remaining > 0) {
+                current->fuel_remaining--;
+            }
+            current = current->next;
+        }
     }
 
     // Print every registered flight
@@ -95,12 +109,20 @@ public:
 
     // Add a crew member to the front of the list
     void add_crew(crew* new_crew) {
-        if (new_crew == 0) {
+        if (new_crew == nullptr)
             return;
+        new_crew->next = nullptr;
+        if (crew_head == nullptr) {
+            crew_head = new_crew;
         }
-        new_crew->next = crew_head;
-        crew_head = new_crew;
-        crew_count = crew_count + 1;
+        else {
+            crew* current = crew_head;
+            while (current->next != nullptr) {
+                current = current->next;
+            }
+            current->next = new_crew;
+        }
+        crew_count++;
     }
 
     // Print every crew member

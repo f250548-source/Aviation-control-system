@@ -260,10 +260,10 @@ void game_engine::register_flight_everywhere(flight* f) {
 }
 
 void game_engine::unregister_flight_everywhere(string callsign) {
-    flight_registry.remove_flight(callsign);
     callsign_table.remove(callsign);
     flight_bst.remove(callsign);
     flight_avl.remove(callsign);
+    flight_registry.remove_flight(callsign);
 }
 
 void game_engine::queue_by_priority(flight* f) {
@@ -752,6 +752,9 @@ void game_engine::option_assign_runway() {
         apply_wrong_command(1);
         return;
     }
+    history_log.log_command("ASSIGN_RUNWAY", current_tick);
+    history_log.push_snapshot(current_tick, credibility,
+        flights_landed, emergencies_resolved, "ASSIGN_RUNWAY", f);
     f->assigned_runway = runway;
     // Mirror into registry head copy if present
     flight* reg = flight_registry.get_head();
@@ -785,6 +788,9 @@ void game_engine::option_reroute_flight() {
         apply_wrong_command(2);
         return;
     }
+    history_log.log_command("REROUTE", current_tick);
+    history_log.push_snapshot(current_tick, credibility,
+        flights_landed, emergencies_resolved, "REROUTE", f);
     f->assigned_runway = new_runway;
     flight* reg = flight_registry.get_head();
     while (reg != 0) {
@@ -809,8 +815,14 @@ void game_engine::process_landing_action() {
         apply_wrong_command(3);
         return;
     }
-    string runway = f->assigned_runway;
-    bool emergency = f->priority_level != NORMAL;
+    flight* registered = callsign_table.find_flight(f->callsign);
+    if (registered == nullptr) {
+        delete f;
+        cout << "Flight no longer active." << endl;
+        return;
+    }
+    string runway = registered->assigned_runway;
+    bool emergency = registered->priority_level != NORMAL;
 
     // Emergency capable runways: 09 and 12 only
     if (emergency) {
@@ -1147,26 +1159,64 @@ void game_engine::option_search_missing() {
 
 void game_engine::option_undo() {
     game_snapshot* snap = history_log.undo();
-    if (snap == 0) {
-        apply_wrong_command(20);
+    if (snap == nullptr)
         return;
+    if (!snap->callsign.empty()) {
+        flight* f = callsign_table.find_flight(snap->callsign);
+        if (f == nullptr) {
+            history_log.redo();
+            cout << "Flight no longer exists." << endl;
+            return;
+        }
+        f->assigned_runway.swap(snap->prev_runway);
+        f->current_sector.swap(snap->prev_sector);
+        f->status.swap(snap->prev_status);
+        int p = f->priority_level;
+        f->priority_level = snap->prev_priority;
+        snap->prev_priority = p;
     }
+    int temp = credibility;
     credibility = snap->credibility;
+    snap->credibility = temp;
+    temp = flights_landed;
     flights_landed = snap->flights_landed;
+    snap->flights_landed = temp;
+    temp = emergencies_resolved;
     emergencies_resolved = snap->emergencies_resolved;
+    snap->emergencies_resolved = temp;
     clamp_credibility();
+    cout << "Command undone." << endl;
 }
 
 void game_engine::option_redo() {
     game_snapshot* snap = history_log.redo();
-    if (snap == 0) {
-        apply_wrong_command(21);
+    if (snap == nullptr)
         return;
+    if (!snap->callsign.empty()) {
+        flight* f = callsign_table.find_flight(snap->callsign);
+        if (f == nullptr) {
+            history_log.undo();
+            cout << "Flight no longer exists." << endl;
+            return;
+        }
+        f->assigned_runway.swap(snap->prev_runway);
+        f->current_sector.swap(snap->prev_sector);
+        f->status.swap(snap->prev_status);
+        int p = f->priority_level;
+        f->priority_level = snap->prev_priority;
+        snap->prev_priority = p;
     }
+    int temp = credibility;
     credibility = snap->credibility;
+    snap->credibility = temp;
+    temp = flights_landed;
     flights_landed = snap->flights_landed;
+    snap->flights_landed = temp;
+    temp = emergencies_resolved;
     emergencies_resolved = snap->emergencies_resolved;
+    snap->emergencies_resolved = temp;
     clamp_credibility();
+    cout << "Command redone." << endl;
 }
 
 void game_engine::option_compare_heights() {
