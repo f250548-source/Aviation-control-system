@@ -15,6 +15,11 @@ private:
     int heap_size;
     int heap_capacity;
 
+    bool is_higher_priority(flight* a, flight* b) {
+        if (a->priority_level == b->priority_level)
+            return a->arrival_tick < b->arrival_tick;
+        return a->priority_level < b->priority_level;
+    }
     // Grow heap capacity when full
     void grow_heap() {
         int new_capacity = heap_capacity * 2;
@@ -36,12 +41,13 @@ private:
     void heapify_up(int index) {
         while (index > 0) {
             int parent = (index - 1) / 2;
-            if (heap_array[index]->priority_level < heap_array[parent]->priority_level) {
+            if (is_higher_priority(heap_array[index], heap_array[parent])) {
                 flight* temp = heap_array[index];
                 heap_array[index] = heap_array[parent];
                 heap_array[parent] = temp;
                 index = parent;
-            } else {
+            }
+            else {
                 break;
             }
         }
@@ -54,21 +60,19 @@ private:
             int right = 2 * index + 2;
             int smallest = index;
             if (left < heap_size &&
-                heap_array[left]->priority_level < heap_array[smallest]->priority_level) {
+                is_higher_priority(heap_array[left], heap_array[smallest])) {
                 smallest = left;
             }
             if (right < heap_size &&
-                heap_array[right]->priority_level < heap_array[smallest]->priority_level) {
+                is_higher_priority(heap_array[right], heap_array[smallest])) {
                 smallest = right;
             }
-            if (smallest != index) {
-                flight* temp = heap_array[index];
-                heap_array[index] = heap_array[smallest];
-                heap_array[smallest] = temp;
-                index = smallest;
-            } else {
+            if (smallest == index)
                 break;
-            }
+            flight* temp = heap_array[index];
+            heap_array[index] = heap_array[smallest];
+            heap_array[smallest] = temp;
+            index = smallest;
         }
     }
 
@@ -192,13 +196,11 @@ public:
 
     // Process next landing: emergency first, else normal
     flight* process_next_landing() {
-        if (!is_empty_heap()) {
-            return extract_min();
-        }
-        if (!is_empty_normal()) {
+        if (!is_empty_normal())
             return dequeue_normal();
-        }
-        return 0;
+        if (!is_empty_heap())
+            return extract_min();
+        return nullptr;
     }
 
     // Print normal queue

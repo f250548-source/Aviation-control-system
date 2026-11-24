@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sstream>
 using namespace std;
 
 // Person 1 stub: loads text data files into structures
@@ -113,15 +114,40 @@ public:
         return true;
     }
 
-    // Load scenario events; returns count via out parameter array (stub: print only)
-    bool load_scenario(string filename) {
+    scenario_event* load_scenario(string filename, int& count) {
+        count = 0;
         ifstream input(filename.c_str());
         if (!input.is_open()) {
-            cout << "[ATC Error] Could not open " << filename << endl;
-            return false;
+            cout << "Could not open " << filename << endl;
+            return nullptr;
         }
-        cout << "Scenario file loaded: " << filename << endl;
+        string line;
+        int capacity = 0;
+        while (getline(input, line))
+            capacity++;
+        input.clear();
+        input.seekg(0);
+        scenario_event* events = new scenario_event[capacity];
+        while (getline(input, line)) {
+            istringstream row(line);
+            scenario_event event;
+            if (row >> event.tick >> event.event_type
+                >> event.callsign >> event.sector >> event.extra) {
+                events[count] = event;
+                count++;
+            }
+        }
         input.close();
+        return events;
+    }
+
+    bool load_scenario(string filename) {
+        int count;
+        scenario_event* events = load_scenario(filename, count);
+        if (events == nullptr)
+            return false;
+        cout << "Scenario events loaded: " << count << endl;
+        delete[] events;
         return true;
     }
 

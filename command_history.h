@@ -1,28 +1,33 @@
+
 #ifndef COMMAND_HISTORY_H
 #define COMMAND_HISTORY_H
 
+#include "flight.h"
 #include <iostream>
 #include <string>
 using namespace std;
 
-// Snapshot of game-relevant counters for undo/redo
 struct game_snapshot {
     int tick;
     int credibility;
     int flights_landed;
     int emergencies_resolved;
     string last_action;
+    string callsign;
+    string prev_runway;
+    int prev_priority;
+    string prev_sector;
+    string prev_status;
     game_snapshot* next;
 };
 
-// Command log node
 struct command_node {
     string command_text;
     int tick;
     command_node* next;
+    command_node* prev;
 };
 
-// Person 1 stub: command log + undo/redo stacks
 class command_history {
 private:
     command_node* history_head;
@@ -30,120 +35,114 @@ private:
     game_snapshot* redo_top;
     string last_command;
 
+    void clear_stack(game_snapshot*& top) {
+        while (top != nullptr) {
+            game_snapshot* temp = top;
+            top = top->next;
+            delete temp;
+        }
+    }
+
 public:
     command_history() {
-        history_head = 0;
-        undo_top = 0;
-        redo_top = 0;
+        history_head = nullptr;
+        undo_top = nullptr;
+        redo_top = nullptr;
         last_command = "";
     }
 
-    // Free history and both stacks
     ~command_history() {
-        command_node* c = history_head;
-        while (c != 0) {
-            command_node* temp = c;
-            c = c->next;
+        while (history_head != nullptr) {
+            command_node* temp = history_head;
+            history_head = history_head->next;
             delete temp;
         }
-        game_snapshot* u = undo_top;
-        while (u != 0) {
-            game_snapshot* temp = u;
-            u = u->next;
-            delete temp;
-        }
-        game_snapshot* r = redo_top;
-        while (r != 0) {
-            game_snapshot* temp = r;
-            r = r->next;
-            delete temp;
-        }
-        history_head = 0;
-        undo_top = 0;
-        redo_top = 0;
+        clear_stack(undo_top);
+        clear_stack(redo_top);
     }
 
-    // Append a command string to the history list
     void log_command(string command_text, int tick) {
         command_node* node = new command_node;
         node->command_text = command_text;
         node->tick = tick;
+        node->prev = nullptr;
         node->next = history_head;
+        if (history_head != nullptr)
+            history_head->prev = node;
         history_head = node;
         last_command = command_text;
     }
 
-    // Push a snapshot onto the undo stack; clear redo
-    void push_snapshot(int tick, int credibility, int flights_landed,
-                       int emergencies_resolved, string last_action) {
+    void push_snapshot(int tick, int credibility,
+        int flights_landed,
+        int emergencies_resolved,
+        string last_action,
+        flight* f = nullptr) {
         game_snapshot* node = new game_snapshot;
         node->tick = tick;
         node->credibility = credibility;
         node->flights_landed = flights_landed;
         node->emergencies_resolved = emergencies_resolved;
         node->last_action = last_action;
+        node->callsign = "";
+        node->prev_priority = NORMAL;
+        if (f != nullptr) {
+            node->callsign = f->callsign;
+            node->prev_runway = f->assigned_runway;
+            node->prev_priority = f->priority_level;
+            node->prev_sector = f->current_sector;
+            node->prev_status = f->status;
+        }
         node->next = undo_top;
         undo_top = node;
-
-        // Clear redo stack
-        game_snapshot* r = redo_top;
-        while (r != 0) {
-            game_snapshot* temp = r;
-            r = r->next;
-            delete temp;
-        }
-        redo_top = 0;
+        clear_stack(redo_top);
     }
 
-    // Pop undo into redo; returns null if empty
     game_snapshot* undo() {
-        if (undo_top == 0) {
-            cout << "[ATC Error] Nothing to undo." << endl;
-            return 0;
+        if (undo_top == nullptr) {
+            cout << "Nothing to undo." << endl;
+            return nullptr;
         }
         game_snapshot* node = undo_top;
         undo_top = undo_top->next;
         node->next = redo_top;
         redo_top = node;
-        cout << "Undo: restored snapshot at tick " << node->tick << endl;
         return node;
     }
 
-    // Pop redo into undo; returns null if empty
     game_snapshot* redo() {
-        if (redo_top == 0) {
-            cout << "[ATC Error] Nothing to redo." << endl;
-            return 0;
+        if (redo_top == nullptr) {
+            cout << "Nothing to redo." << endl;
+            return nullptr;
         }
         game_snapshot* node = redo_top;
         redo_top = redo_top->next;
         node->next = undo_top;
         undo_top = node;
-        cout << "Redo: restored snapshot at tick " << node->tick << endl;
         return node;
     }
 
-    // Print full command history
-    void display_history() {
+    void display_history(int count = -1) {
         cout << "=== Command History ===" << endl;
         command_node* current = history_head;
-        if (current == 0) {
+        if (current == nullptr) {
             cout << "No commands logged." << endl;
             return;
         }
-        while (current != 0) {
-            cout << "[Tick " << current->tick << "] " << current->command_text << endl;
+        while (current != nullptr && count != 0) {
+            cout << "[Tick " << current->tick << "] "
+                << current->command_text << endl;
             current = current->next;
+            if (count > 0)
+                count--;
         }
     }
 
-    // Print the most recent command
     void display_last_command() {
-        if (last_command.length() == 0) {
+        if (last_command.empty())
             cout << "No commands yet." << endl;
-        } else {
+        else
             cout << "Last command: " << last_command << endl;
-        }
     }
 };
 
