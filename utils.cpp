@@ -8,6 +8,13 @@ void swap_values(int& a, int& b) {
     b = temp;
 }
 
+// Exchange two strings without calling string::swap
+void swap_strings(string& a, string& b) {
+    string temp = a;
+    a = b;
+    b = temp;
+}
+
 // Manual minimum
 int min_value(int a, int b) {
     if (a < b) {

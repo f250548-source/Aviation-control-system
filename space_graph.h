@@ -128,6 +128,10 @@ public:
     // True if the adjacency list and adjacency matrix describe the same graph
     bool is_consistent();
 
+    // Startup check against the project-manual airspace rules.
+    // Prints [ATC Error] for each broken rule; returns true if all pass.
+    bool validate_manual_rules();
+
     void display_adjacency_list();
     void display_adjacency_matrix();
 };

@@ -194,13 +194,16 @@ public:
         return heap_size == 0;
     }
 
-    // Process next landing: emergency first, else normal
+    // Process next landing: NORMAL queue first if non-empty, else emergency heap.
+    // Heap order is priority_level first, then earlier arrival_tick.
     flight* process_next_landing() {
-        if (!is_empty_normal())
+        if (!is_empty_normal()) {
             return dequeue_normal();
-        if (!is_empty_heap())
+        }
+        if (!is_empty_heap()) {
             return extract_min();
-        return nullptr;
+        }
+        return 0;
     }
 
     // Print normal queue

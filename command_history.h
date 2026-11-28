@@ -100,7 +100,7 @@ public:
 
     game_snapshot* undo() {
         if (undo_top == nullptr) {
-            cout << "Nothing to undo." << endl;
+            cout << "[ATC Error] Nothing to undo (undo stack empty)." << endl;
             return nullptr;
         }
         game_snapshot* node = undo_top;
@@ -112,7 +112,7 @@ public:
 
     game_snapshot* redo() {
         if (redo_top == nullptr) {
-            cout << "Nothing to redo." << endl;
+            cout << "[ATC Error] Nothing to redo (redo stack empty)." << endl;
             return nullptr;
         }
         game_snapshot* node = redo_top;

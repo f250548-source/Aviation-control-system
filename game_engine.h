@@ -23,9 +23,10 @@ struct active_emergency {
     string callsign;
     int event_type;
     int spawn_tick;
-    int deadline_ticks;
+    int deadline_ticks;   // actor-specific window
     string threat_actor;
     bool resolved;
+    bool corridor_disabled;  // cyber: corridor already cut for this alert
     active_emergency* next;
 };
 
@@ -40,7 +41,7 @@ struct missing_flight_record {
     missing_flight_record* next;
 };
 
-// Module 10: tick-based ATC simulation engine
+// Module 10: tick-based ATC simulation engine (manual menu 01-24)
 class game_engine {
 private:
     string player_name;
@@ -50,18 +51,19 @@ private:
     int actions_remaining;
     int flights_landed;
     int emergencies_resolved;
+    int crash_count;
+    int hijack_count;
+    int breach_count;
     bool game_over;
     bool mission_won;
     string failure_cause;
     bool tower_disabled;
-    bool cyber_corridor_disabled;
     int last_spawn_tick;
     int next_spawn_interval;
 
     // Wrong-command penalty grows by type (base -5, then -10, ...)
     int wrong_penalty_by_type[32];
 
-    // Teammate / shared modules
     registration flight_registry;
     hash_table callsign_table;
     emergency_landing landing_system;
@@ -78,7 +80,6 @@ private:
     active_emergency* emergency_head;
     missing_flight_record* missing_head;
 
-    // ---- Internal helpers ----
     void reset_state();
     void free_emergency_list();
     void free_missing_list();
@@ -87,7 +88,7 @@ private:
     void apply_wrong_command(int penalty_slot);
     bool is_free_action(int option_code);
     void consume_action_if_needed(int option_code);
-    void push_undo_snapshot(string action_label);
+    void push_undo_snapshot(string action_label, flight* f);
     void register_flight_everywhere(flight* f);
     void unregister_flight_everywhere(string callsign);
     void queue_by_priority(flight* f);
@@ -104,40 +105,37 @@ private:
     string pick_random_sector();
     string pick_random_runway(bool emergency_capable_only);
     int random_range(int low, int high);
+    void print_flight_record(flight* f);
 
-    // Per-tick pipeline
     void auto_move_flights();
     void apply_escalation();
     void auto_spawn();
     void check_win_lose();
     void advance_tick();
-
-    // Landing helper
     void process_landing_action();
 
-    // Option handlers 01-24
     void handle_option(int option_code);
-    void option_assign_runway();
-    void option_reroute_flight();
+    void option_register_aircraft();
+    void option_register_crew();
+    void option_search_flight();
+    void option_add_normal_arrival();
+    void option_add_emergency_arrival();
     void option_process_landing();
-    void option_manual_spawn_normal();
-    void option_manual_spawn_emergency();
-    void option_declare_emergency();
-    void option_clear_war();
+    void option_clear_flight_for_runway();
+    void option_reroute_flight();
+    void option_intercept_aircraft();
+    void option_escalate_priority();
     void option_counter_cyber();
-    void option_intercept_hostile();
-    void option_counter_hijack();
-    void option_medical_landing();
-    void option_weather_reroute();
-    void option_view_pending();
-    void option_view_crew();
-    void option_view_flights();
-    void option_view_airspace();
-    void option_radar_sweep();
-    void option_compute_mst();
+    void option_undo_redo();
+    void option_display_pending();
+    void option_display_crew();
+    void option_display_flights();
+    void option_display_airspace();
+    void option_bfs_radar_sweep();
+    void option_dfs_sector_traversal();
     void option_search_missing();
-    void option_undo();
-    void option_redo();
+    void option_find_fastest_route();
+    void option_generate_mst();
     void option_compare_heights();
     void option_end_turn();
     void option_exit_to_menu();
@@ -148,10 +146,7 @@ public:
     game_engine();
     ~game_engine();
 
-    // Prompt for name, load data, reset state, enter loop
     void start_new_game();
-
-    // Main in-game loop until win/lose/exit
     void run_game_loop();
 };
 

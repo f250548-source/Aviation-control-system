@@ -7,10 +7,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <sstream>
 using namespace std;
 
-// Person 1 stub: loads text data files into structures
+// Loads text data files into the game structures (no <sstream>)
 class file_loader {
 public:
     file_loader() {
@@ -83,13 +82,14 @@ public:
         return true;
     }
 
-    // Load airspace sectors and corridors into space_graph
+    // Load airspace, then run the manual topology checks
     bool load_airspace(space_graph& graph, string filename) {
         ifstream input(filename.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename
                  << " - using default airspace." << endl;
             build_default_airspace(graph);
+            graph.validate_manual_rules();
             return false;
         }
         string command;
@@ -111,41 +111,103 @@ public:
         if (graph.get_sector_count() == 0) {
             build_default_airspace(graph);
         }
+        graph.validate_manual_rules();
         return true;
     }
 
+    // Parse scenario lines with >> only (skips # comment lines manually)
     scenario_event* load_scenario(string filename, int& count) {
         count = 0;
         ifstream input(filename.c_str());
         if (!input.is_open()) {
-            cout << "Could not open " << filename << endl;
-            return nullptr;
+            cout << "[ATC Error] Could not open " << filename << endl;
+            return 0;
         }
+
+        // Count non-empty, non-comment lines first
         string line;
         int capacity = 0;
-        while (getline(input, line))
-            capacity++;
+        while (getline(input, line)) {
+            if (line.length() == 0) {
+                continue;
+            }
+            if (line[0] == '#') {
+                continue;
+            }
+            capacity = capacity + 1;
+        }
         input.clear();
         input.seekg(0);
+
+        if (capacity <= 0) {
+            input.close();
+            return 0;
+        }
+
         scenario_event* events = new scenario_event[capacity];
         while (getline(input, line)) {
-            istringstream row(line);
-            scenario_event event;
-            if (row >> event.tick >> event.event_type
-                >> event.callsign >> event.sector >> event.extra) {
-                events[count] = event;
-                count++;
+            if (line.length() == 0 || line[0] == '#') {
+                continue;
             }
+            // Manual parse: extract five whitespace-separated fields
+            string tokens[5];
+            int token_count = 0;
+            string current = "";
+            int i = 0;
+            while (i < (int)line.length() && token_count < 5) {
+                char ch = line[i];
+                if (ch == ' ' || ch == '\t') {
+                    if (current.length() > 0) {
+                        tokens[token_count] = current;
+                        token_count = token_count + 1;
+                        current = "";
+                    }
+                } else {
+                    current = current + ch;
+                }
+                i = i + 1;
+            }
+            if (current.length() > 0 && token_count < 5) {
+                tokens[token_count] = current;
+                token_count = token_count + 1;
+            }
+            if (token_count < 5) {
+                continue;
+            }
+
+            // Parse tick digits manually
+            int tick_value = 0;
+            bool tick_ok = true;
+            int t = 0;
+            while (t < (int)tokens[0].length()) {
+                if (tokens[0][t] < '0' || tokens[0][t] > '9') {
+                    tick_ok = false;
+                    break;
+                }
+                tick_value = tick_value * 10 + (tokens[0][t] - '0');
+                t = t + 1;
+            }
+            if (!tick_ok) {
+                continue;
+            }
+
+            events[count].tick = tick_value;
+            events[count].event_type = tokens[1];
+            events[count].callsign = tokens[2];
+            events[count].sector = tokens[3];
+            events[count].extra = tokens[4];
+            count = count + 1;
         }
         input.close();
         return events;
     }
 
     bool load_scenario(string filename) {
-        int count;
+        int count = 0;
         scenario_event* events = load_scenario(filename, count);
-        if (events == nullptr)
+        if (events == 0) {
             return false;
+        }
         cout << "Scenario events loaded: " << count << endl;
         delete[] events;
         return true;
@@ -204,61 +266,62 @@ public:
     }
 
 private:
-    // Fallback airspace when airspace.txt is missing
+    // Fallback airspace matching the project-manual topology
     void build_default_airspace(space_graph& graph) {
         graph.add_sector("Control_Tower", false);
-        graph.add_sector("Restricted_Zone", false);
-        graph.add_sector("Syntax_Sector", false);
-        graph.add_sector("Cache_Fly", false);
         graph.add_sector("Air_Segment", false);
-        graph.add_sector("NullAir_Approach", false);
-        graph.add_sector("RWY09", true);
+        graph.add_sector("Cache_Fly", false);
+        graph.add_sector("Syntax_Sector", false);
+        graph.add_sector("Alpha_Tree", false);
+        graph.add_sector("Restricted_Zone", false);
+        graph.add_sector("Holding_Pattern_Delta", false);
         graph.add_sector("RWY12", true);
         graph.add_sector("RWY04", true);
         graph.add_sector("RWY17", true);
+        graph.add_sector("RWY09", true);
 
-        graph.add_corridor("Control_Tower", "Syntax_Sector", 2);
-        graph.add_corridor("Control_Tower", "Cache_Fly", 3);
         graph.add_corridor("Control_Tower", "Air_Segment", 4);
-        graph.add_corridor("Syntax_Sector", "Restricted_Zone", 2);
-        graph.add_corridor("Syntax_Sector", "NullAir_Approach", 3);
-        graph.add_corridor("Cache_Fly", "Air_Segment", 2);
-        graph.add_corridor("Air_Segment", "RWY09", 2);
+        graph.add_corridor("Control_Tower", "Cache_Fly", 3);
+        graph.add_corridor("Control_Tower", "Syntax_Sector", 2);
+        graph.add_corridor("Control_Tower", "Alpha_Tree", 5);
         graph.add_corridor("Air_Segment", "RWY12", 3);
-        graph.add_corridor("NullAir_Approach", "RWY04", 2);
-        graph.add_corridor("Restricted_Zone", "RWY17", 4);
-        graph.add_corridor("Cache_Fly", "RWY09", 5);
-        graph.add_corridor("Syntax_Sector", "RWY12", 4);
-        graph.add_corridor("Control_Tower", "Restricted_Zone", 6);
-        graph.add_corridor("NullAir_Approach", "Air_Segment", 3);
+        graph.add_corridor("Air_Segment", "Holding_Pattern_Delta", 2);
+        graph.add_corridor("Cache_Fly", "RWY04", 4);
+        graph.add_corridor("Cache_Fly", "Holding_Pattern_Delta", 3);
+        graph.add_corridor("Syntax_Sector", "RWY17", 6);
+        graph.add_corridor("Syntax_Sector", "Alpha_Tree", 2);
+        graph.add_corridor("Alpha_Tree", "Restricted_Zone", 3);
+        graph.add_corridor("Alpha_Tree", "RWY09", 9);
+        graph.add_corridor("Holding_Pattern_Delta", "RWY09", 4);
+        graph.add_corridor("Holding_Pattern_Delta", "RWY12", 6);
     }
 
-    // Fallback 24-option game menu
+    // Fallback 24-option game menu (exact manual numbering)
     void print_default_game_menu() {
         cout << "======= MayDay-404 Game Menu =======" << endl;
-        cout << "01. Assign Runway" << endl;
-        cout << "02. Reroute Flight" << endl;
-        cout << "03. Process Landing" << endl;
-        cout << "04. Manual Spawn Normal Flight" << endl;
-        cout << "05. Manual Spawn Emergency" << endl;
-        cout << "06. Declare Emergency Priority" << endl;
-        cout << "07. Clear War Aircraft" << endl;
-        cout << "08. Counter Cyber Attack" << endl;
-        cout << "09. Intercept Hostile" << endl;
-        cout << "10. Counter Hijack" << endl;
-        cout << "11. Medical Priority Landing" << endl;
-        cout << "12. Weather Reroute" << endl;
-        cout << "13. View Pending Arrivals" << endl;
-        cout << "14. View Crew" << endl;
-        cout << "15. View Flight Records" << endl;
-        cout << "16. View Airspace Network" << endl;
-        cout << "17. Radar Sweep (BFS/DFS)" << endl;
-        cout << "18. Compute Radar MST" << endl;
-        cout << "19. Search Missing Flight" << endl;
-        cout << "20. Undo Last Command" << endl;
-        cout << "21. Redo Last Command" << endl;
-        cout << "22. Compare BST vs AVL Heights" << endl;
-        cout << "23. End Turn / Advance Tick" << endl;
+        cout << "01. Register Aircraft" << endl;
+        cout << "02. Register Crew Member" << endl;
+        cout << "03. Search Flight by Call Sign" << endl;
+        cout << "04. Add Normal Arrival" << endl;
+        cout << "05. Add Emergency Arrival" << endl;
+        cout << "06. Process Next Landing" << endl;
+        cout << "07. Clear Flight for Runway" << endl;
+        cout << "08. Reroute Flight" << endl;
+        cout << "09. Intercept Aircraft" << endl;
+        cout << "10. Escalate Priority" << endl;
+        cout << "11. Counter Cyber Attack" << endl;
+        cout << "12. Undo Last Command" << endl;
+        cout << "13. Display Pending Arrivals" << endl;
+        cout << "14. Display Crew Members" << endl;
+        cout << "15. Display Flight Records" << endl;
+        cout << "16. Display Airspace Network" << endl;
+        cout << "17. BFS Radar Sweep" << endl;
+        cout << "18. DFS Sector Traversal" << endl;
+        cout << "19. Search for Missing Flight" << endl;
+        cout << "20. Find Fastest Route to Runway" << endl;
+        cout << "21. Generate Minimum Radar Coverage" << endl;
+        cout << "22. Compare BST and AVL Heights" << endl;
+        cout << "23. End Turn/Advance Tick" << endl;
         cout << "24. Exit to Main Menu" << endl;
         cout << "====================================" << endl;
     }

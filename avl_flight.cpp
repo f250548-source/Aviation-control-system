@@ -1,6 +1,5 @@
 #include "avl_flight.h"
 #include "bst_flight.h"
-#include <iomanip>
 using namespace std;
 
 avl_flight::avl_flight() {
@@ -387,15 +386,14 @@ void compare_bst_avl_heights_demo() {
         avl_flight demo_avl;
 
         cout << "=== BST vs AVL: 15 callsigns inserted in alphabetical order ===" << endl;
-        cout << setw(4) << "#" << "  " << setw(8) << "Callsign"
-             << setw(12) << "BST height" << setw(12) << "AVL height" << endl;
+        cout << "#  Callsign  BST height  AVL height" << endl;
         i = 0;
         while (i < DEMO_COUNT) {
             demo_bst.insert(&demo_flights[i]);
             demo_avl.insert(&demo_flights[i]);
-            cout << setw(4) << (i + 1) << "  " << setw(8) << demo_callsigns[i]
-                 << setw(12) << demo_bst.height() << setw(12) << demo_avl.height()
-                 << endl;
+            cout << (i + 1) << "  " << demo_callsigns[i]
+                 << "  " << demo_bst.height()
+                 << "  " << demo_avl.height() << endl;
             i = i + 1;
         }
 

@@ -1,5 +1,4 @@
 #include "space_graph.h"
-#include <iomanip>
 using namespace std;
 
 // ============================================================================
@@ -460,30 +459,30 @@ void space_graph::display_adjacency_list() {
 }
 
 // Rows/columns are labelled by sector index; a legend maps index -> name.
-// A "." marks no corridor (stored as 0).
+// A "." marks no corridor (stored as 0). No <iomanip> — plain spacing only.
 void space_graph::display_adjacency_matrix() {
     cout << "=== Airspace Adjacency Matrix (seconds, . = no corridor) ===" << endl;
     if (sector_count == 0) {
         cout << "(no sectors loaded)" << endl;
         return;
     }
-    cout << setw(5) << " ";
+    cout << "     ";
     int col = 0;
     while (col < sector_count) {
-        cout << setw(4) << col;
+        cout << col << " ";
         col = col + 1;
     }
     cout << endl;
 
     int row = 0;
     while (row < sector_count) {
-        cout << setw(4) << row << " ";
+        cout << row << " : ";
         col = 0;
         while (col < sector_count) {
             if (adjacency_matrix[row][col] == NO_EDGE) {
-                cout << setw(4) << ".";
+                cout << ". ";
             } else {
-                cout << setw(4) << adjacency_matrix[row][col];
+                cout << adjacency_matrix[row][col] << " ";
             }
             col = col + 1;
         }
@@ -501,4 +500,184 @@ void space_graph::display_adjacency_matrix() {
         i = i + 1;
     }
     cout << endl;
+}
+
+// Local helpers for validate_manual_rules (file-scope, not class methods)
+static bool sector_can_reach_runway(space_graph& graph, int start_index) {
+    int n = graph.get_sector_count();
+    if (start_index < 0 || start_index >= n) {
+        return false;
+    }
+    bool* visited = new bool[n];
+    int* bfs_queue = new int[n];
+    int i = 0;
+    while (i < n) {
+        visited[i] = false;
+        i = i + 1;
+    }
+    int front = 0;
+    int rear = 0;
+    visited[start_index] = true;
+    bfs_queue[rear] = start_index;
+    rear = rear + 1;
+    bool found_runway = graph.is_runway(start_index);
+    while (front < rear) {
+        int current = bfs_queue[front];
+        front = front + 1;
+        if (graph.is_runway(current)) {
+            found_runway = true;
+        }
+        neighbor_node* neighbor = graph.get_neighbors(current);
+        while (neighbor != 0) {
+            int next_index = neighbor->sector_index;
+            if (!visited[next_index]) {
+                visited[next_index] = true;
+                bfs_queue[rear] = next_index;
+                rear = rear + 1;
+            }
+            neighbor = neighbor->next;
+        }
+    }
+    delete[] visited;
+    delete[] bfs_queue;
+    return found_runway;
+}
+
+static int hops_from(space_graph& graph, int start_index, int target_index) {
+    int n = graph.get_sector_count();
+    if (start_index < 0 || target_index < 0 || start_index >= n || target_index >= n) {
+        return -1;
+    }
+    int* hop = new int[n];
+    int* bfs_queue = new int[n];
+    int i = 0;
+    while (i < n) {
+        hop[i] = -1;
+        i = i + 1;
+    }
+    int front = 0;
+    int rear = 0;
+    hop[start_index] = 0;
+    bfs_queue[rear] = start_index;
+    rear = rear + 1;
+    while (front < rear) {
+        int current = bfs_queue[front];
+        front = front + 1;
+        neighbor_node* neighbor = graph.get_neighbors(current);
+        while (neighbor != 0) {
+            int next_index = neighbor->sector_index;
+            if (hop[next_index] < 0) {
+                hop[next_index] = hop[current] + 1;
+                bfs_queue[rear] = next_index;
+                rear = rear + 1;
+            }
+            neighbor = neighbor->next;
+        }
+    }
+    int result = hop[target_index];
+    delete[] hop;
+    delete[] bfs_queue;
+    return result;
+}
+
+// Startup check for the project-manual airspace rules
+bool space_graph::validate_manual_rules() {
+    bool ok = true;
+
+    if (get_sector_index("Holding_Pattern_Delta") < 0) {
+        cout << "[ATC Error] Missing sector Holding_Pattern_Delta." << endl;
+        ok = false;
+    }
+
+    int alpha_index = get_sector_index("Alpha_Tree");
+    if (alpha_index < 0) {
+        cout << "[ATC Error] Missing sector Alpha_Tree." << endl;
+        ok = false;
+    }
+
+    int restricted_index = get_sector_index("Restricted_Zone");
+    if (restricted_index < 0) {
+        cout << "[ATC Error] Missing sector Restricted_Zone." << endl;
+        ok = false;
+    }
+
+    int tower_index = get_sector_index("Control_Tower");
+    if (tower_index < 0) {
+        cout << "[ATC Error] Missing sector Control_Tower." << endl;
+        ok = false;
+    }
+
+    if (restricted_index >= 0 && alpha_index >= 0) {
+        neighbor_node* neighbor = get_neighbors(restricted_index);
+        int neighbor_total = 0;
+        bool only_alpha = true;
+        while (neighbor != 0) {
+            neighbor_total = neighbor_total + 1;
+            if (neighbor->sector_index != alpha_index) {
+                only_alpha = false;
+            }
+            neighbor = neighbor->next;
+        }
+        if (neighbor_total != 1 || !only_alpha) {
+            cout << "[ATC Error] Restricted_Zone must connect only to Alpha_Tree."
+                 << endl;
+            ok = false;
+        }
+    }
+
+    int s = 0;
+    while (s < sector_count) {
+        if (!sector_can_reach_runway(*this, s)) {
+            cout << "[ATC Error] Sector " << sectors[s].name
+                 << " has no path to any runway." << endl;
+            ok = false;
+        }
+        s = s + 1;
+    }
+
+    bool found_far = false;
+    if (tower_index >= 0) {
+        s = 0;
+        while (s < sector_count) {
+            int distance = hops_from(*this, tower_index, s);
+            if (distance >= 2) {
+                found_far = true;
+                break;
+            }
+            s = s + 1;
+        }
+    }
+    if (!found_far) {
+        cout << "[ATC Error] Need at least one sector reachable only through "
+             << "two or more hops from Control_Tower." << endl;
+        ok = false;
+    }
+
+    int first_weight = -1;
+    bool varied = false;
+    s = 0;
+    while (s < sector_count) {
+        neighbor_node* neighbor = get_neighbors(s);
+        while (neighbor != 0) {
+            if (neighbor->sector_index > s) {
+                if (first_weight < 0) {
+                    first_weight = neighbor->weight;
+                } else if (neighbor->weight != first_weight) {
+                    varied = true;
+                }
+            }
+            neighbor = neighbor->next;
+        }
+        s = s + 1;
+    }
+    if (!varied) {
+        cout << "[ATC Error] Corridor weights must vary across the network."
+             << endl;
+        ok = false;
+    }
+
+    if (ok) {
+        cout << "Airspace manual-rules check: OK." << endl;
+    }
+    return ok;
 }

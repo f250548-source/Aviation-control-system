@@ -10,6 +10,9 @@ using namespace std;
 // Swap two integers in place
 void swap_values(int& a, int& b);
 
+// Swap two strings in place (no string::swap / std::swap)
+void swap_strings(string& a, string& b);
+
 // Return the smaller of two integers
 int min_value(int a, int b);
 

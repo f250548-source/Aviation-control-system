@@ -1,24 +1,25 @@
 SECTOR Control_Tower 0
-SECTOR Restricted_Zone 0
-SECTOR Syntax_Sector 0
-SECTOR Cache_Fly 0
 SECTOR Air_Segment 0
-SECTOR NullAir_Approach 0
-SECTOR RWY09 1
+SECTOR Cache_Fly 0
+SECTOR Syntax_Sector 0
+SECTOR Alpha_Tree 0
+SECTOR Restricted_Zone 0
+SECTOR Holding_Pattern_Delta 0
 SECTOR RWY12 1
 SECTOR RWY04 1
 SECTOR RWY17 1
-CORRIDOR Control_Tower Syntax_Sector 2
-CORRIDOR Control_Tower Cache_Fly 3
+SECTOR RWY09 1
 CORRIDOR Control_Tower Air_Segment 4
-CORRIDOR Syntax_Sector Restricted_Zone 2
-CORRIDOR Syntax_Sector NullAir_Approach 3
-CORRIDOR Cache_Fly Air_Segment 2
-CORRIDOR Air_Segment RWY09 2
+CORRIDOR Control_Tower Cache_Fly 3
+CORRIDOR Control_Tower Syntax_Sector 2
+CORRIDOR Control_Tower Alpha_Tree 5
 CORRIDOR Air_Segment RWY12 3
-CORRIDOR NullAir_Approach RWY04 2
-CORRIDOR Restricted_Zone RWY17 4
-CORRIDOR Cache_Fly RWY09 5
-CORRIDOR Syntax_Sector RWY12 4
-CORRIDOR Control_Tower Restricted_Zone 6
-CORRIDOR NullAir_Approach Air_Segment 3
+CORRIDOR Air_Segment Holding_Pattern_Delta 2
+CORRIDOR Cache_Fly RWY04 4
+CORRIDOR Cache_Fly Holding_Pattern_Delta 3
+CORRIDOR Syntax_Sector RWY17 6
+CORRIDOR Syntax_Sector Alpha_Tree 2
+CORRIDOR Alpha_Tree Restricted_Zone 3
+CORRIDOR Alpha_Tree RWY09 9
+CORRIDOR Holding_Pattern_Delta RWY09 4
+CORRIDOR Holding_Pattern_Delta RWY12 6
