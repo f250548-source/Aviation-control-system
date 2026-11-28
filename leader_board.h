@@ -1,6 +1,7 @@
 #ifndef LEADER_BOARD_H
 #define LEADER_BOARD_H
 
+#include "utils.h"
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -126,10 +127,28 @@ public:
     // Append one game result with the current date
     void save_result(string commander, string result, int credibility, int ticks,
                      int crashes, int hijacks, int breaches, string filename) {
-        ofstream output(filename.c_str(), ios::app);
+        string path = resolve_data_file(filename);
+        // If file does not exist yet, prefer writing next to other data files
+        ifstream probe(path.c_str());
+        if (!probe.is_open()) {
+            path = string("../") + filename;
+        } else {
+            probe.close();
+        }
+        ofstream output(path.c_str(), ios::app);
         if (!output.is_open()) {
-            cout << "[ATC Error] Could not open " << filename
-                 << " for writing." << endl;
+            ofstream fallback(filename.c_str(), ios::app);
+            if (!fallback.is_open()) {
+                cout << "[ATC Error] Could not open " << filename
+                     << " for writing." << endl;
+                return;
+            }
+            string date_text = current_date_string();
+            fallback << commander << " | " << result << " | " << credibility
+                     << " | " << ticks << " | " << crashes << " | " << hijacks
+                     << " | " << breaches << " | " << date_text << endl;
+            fallback.close();
+            cout << "Result saved to " << filename << endl;
             return;
         }
         string date_text = current_date_string();
@@ -137,12 +156,13 @@ public:
                << " | " << ticks << " | " << crashes << " | " << hijacks
                << " | " << breaches << " | " << date_text << endl;
         output.close();
-        cout << "Result saved to " << filename << endl;
+        cout << "Result saved to " << path << endl;
     }
 
     // Load all rows, sort, print with rank numbers
     void display_leaderboard(string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             cout << "No leaderboard entries yet." << endl;

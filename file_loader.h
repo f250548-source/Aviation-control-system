@@ -4,6 +4,7 @@
 #include "flight.h"
 #include "registration.h"
 #include "space_graph.h"
+#include "utils.h"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -20,7 +21,8 @@ public:
 
     // Load flights from flights.txt into registration
     bool load_flights(registration& reg, string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             return false;
@@ -60,7 +62,8 @@ public:
 
     // Load crew from crew.txt into registration
     bool load_crew(registration& reg, string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             return false;
@@ -84,7 +87,8 @@ public:
 
     // Load airspace, then run the manual topology checks
     bool load_airspace(space_graph& graph, string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename
                  << " - using default airspace." << endl;
@@ -118,7 +122,8 @@ public:
     // Parse scenario lines with >> only (skips # comment lines manually)
     scenario_event* load_scenario(string filename, int& count) {
         count = 0;
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             return 0;
@@ -215,7 +220,8 @@ public:
 
     // Load max ticks and other rules; returns max_ticks (default 30)
     int load_rules(string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename
                  << " - using default max ticks 30." << endl;
@@ -237,7 +243,8 @@ public:
 
     // Print about.txt contents
     void load_about(string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             cout << "MayDay-404: Air Traffic Control Simulation" << endl;
@@ -252,7 +259,8 @@ public:
 
     // Print gamemenu.txt contents
     void load_game_menu(string filename) {
-        ifstream input(filename.c_str());
+        string path = resolve_data_file(filename);
+        ifstream input(path.c_str());
         if (!input.is_open()) {
             cout << "[ATC Error] Could not open " << filename << endl;
             print_default_game_menu();

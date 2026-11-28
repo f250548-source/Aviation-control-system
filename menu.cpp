@@ -46,7 +46,8 @@ void show_rules() {
     cout << endl;
 
     // Also dump the raw file if present
-    ifstream input("rules.txt");
+    string rules_path = resolve_data_file("rules.txt");
+    ifstream input(rules_path.c_str());
     if (input.is_open()) {
         cout << "--- rules.txt ---" << endl;
         string line;

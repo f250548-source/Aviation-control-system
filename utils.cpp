@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <fstream>
 using namespace std;
 
 // Exchange two integer values without std::swap
@@ -125,4 +126,29 @@ void print_result_box(string player_name, int credibility, int ticks,
 // Echo a radio phrase for immersion / viva demos
 void print_aviation_call(string call_text) {
     cout << "*** " << call_text << " ***" << endl;
+}
+
+// Visual Studio often starts the exe inside Debug\ or x64\Debug\,
+// while rules.txt / about.txt live in the project folder.
+string resolve_data_file(string filename) {
+    string path0 = filename;
+    string path1 = string("../") + filename;
+    string path2 = string("../../") + filename;
+
+    ifstream test0(path0.c_str());
+    if (test0.is_open()) {
+        test0.close();
+        return path0;
+    }
+    ifstream test1(path1.c_str());
+    if (test1.is_open()) {
+        test1.close();
+        return path1;
+    }
+    ifstream test2(path2.c_str());
+    if (test2.is_open()) {
+        test2.close();
+        return path2;
+    }
+    return path0;
 }

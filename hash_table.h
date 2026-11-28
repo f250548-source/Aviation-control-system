@@ -16,11 +16,16 @@ enum hash_slot_state {
 // Open-addressing hash table (linear probing) keyed by callsign.
 // Table size is the prime 101. Stores NON-OWNING flight* pointers;
 // registration owns the flight records.
+//
+// IMPORTANT: each slot also stores its own copy of the callsign key.
+// find/remove compare against that key, never against a possibly-deleted
+// flight object's string. That avoids crashes after unregister.
 class hash_table {
 private:
     static const int TABLE_SIZE = 101;
 
     flight* buckets[TABLE_SIZE];
+    string keys[TABLE_SIZE];
     hash_slot_state states[TABLE_SIZE];
     int entry_count;
     int collision_count;
@@ -31,7 +36,6 @@ private:
         unsigned long hash_value = 0;
         int i = 0;
         while (i < (int)callsign.length()) {
-            // 31 is a common small prime multiplier for string hashing
             hash_value = hash_value * 31UL + (unsigned long)(unsigned char)callsign[i];
             i = i + 1;
         }
@@ -47,6 +51,7 @@ public:
         int i = 0;
         while (i < TABLE_SIZE) {
             buckets[i] = 0;
+            keys[i] = "";
             states[i] = EMPTY;
             i = i + 1;
         }
@@ -57,6 +62,7 @@ public:
         int i = 0;
         while (i < TABLE_SIZE) {
             buckets[i] = 0;
+            keys[i] = "";
             states[i] = EMPTY;
             i = i + 1;
         }
@@ -83,7 +89,6 @@ public:
         while (i < TABLE_SIZE) {
             int pos = (start + i) % TABLE_SIZE;
             if (states[pos] == OCCUPIED) {
-                // Occupied slot that is not our key counts as a collision
                 collision_count = collision_count + 1;
                 probe_steps = probe_steps + 1;
             } else if (states[pos] == DELETED) {
@@ -92,12 +97,12 @@ public:
                 }
                 probe_steps = probe_steps + 1;
             } else {
-                // EMPTY slot: place here, or reuse an earlier tombstone
                 int place = pos;
                 if (first_deleted >= 0) {
                     place = first_deleted;
                 }
                 buckets[place] = f;
+                keys[place] = f->callsign;
                 states[place] = OCCUPIED;
                 entry_count = entry_count + 1;
                 int chain = probe_steps + 1;
@@ -109,9 +114,9 @@ public:
             i = i + 1;
         }
 
-        // Wrapped around the whole table; try a recorded tombstone
         if (first_deleted >= 0) {
             buckets[first_deleted] = f;
+            keys[first_deleted] = f->callsign;
             states[first_deleted] = OCCUPIED;
             entry_count = entry_count + 1;
             if (TABLE_SIZE > longest_probe_chain) {
@@ -133,11 +138,10 @@ public:
             if (states[pos] == EMPTY) {
                 return 0;
             }
-            if (states[pos] == OCCUPIED && buckets[pos] != 0
-                && buckets[pos]->callsign == callsign) {
+            // Compare stored key only — never touch a deleted flight object here
+            if (states[pos] == OCCUPIED && keys[pos] == callsign) {
                 return buckets[pos];
             }
-            // DELETED: keep probing past the tombstone
             i = i + 1;
         }
         return 0;
@@ -152,9 +156,9 @@ public:
             if (states[pos] == EMPTY) {
                 return false;
             }
-            if (states[pos] == OCCUPIED && buckets[pos] != 0
-                && buckets[pos]->callsign == callsign) {
+            if (states[pos] == OCCUPIED && keys[pos] == callsign) {
                 buckets[pos] = 0;
+                keys[pos] = "";
                 states[pos] = DELETED;
                 entry_count = entry_count - 1;
                 return true;

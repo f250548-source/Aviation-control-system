@@ -36,4 +36,8 @@ void print_result_box(string player_name, int credibility, int ticks,
 // Print a common aviation radio call
 void print_aviation_call(string call_text);
 
+// Find a data .txt even when VS runs from Debug\ or x64\Debug\
+// Tries: name, ../name, ../../name. Returns first path that exists.
+string resolve_data_file(string filename);
+
 #endif

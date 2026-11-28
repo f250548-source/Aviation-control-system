@@ -282,11 +282,14 @@ void game_engine::register_flight_everywhere(flight* f) {
     flight_avl.insert(f);
 }
 
+// Drop indexes FIRST, then delete the owned registry node.
+// Deleting first left dangling pointers in the hash table and crashed
+// on the next tick when find/insert probed an OCCUPIED dead slot.
 void game_engine::unregister_flight_everywhere(string callsign) {
-    flight_registry.remove_flight(callsign);
     callsign_table.remove(callsign);
     flight_bst.remove(callsign);
     flight_avl.remove(callsign);
+    flight_registry.remove_flight(callsign);
 }
 
 void game_engine::queue_by_priority(flight* f) {
@@ -1347,15 +1350,8 @@ void game_engine::option_generate_mst() {
 
 void game_engine::option_compare_heights() {
     cout << "22 Compare BST and AVL Heights (free)" << endl;
-    ifstream input("avl_demo.txt");
-    if (!input.is_open()) {
-        input.clear();
-        input.open("../avl_demo.txt");
-    }
-    if (!input.is_open()) {
-        input.clear();
-        input.open("../../avl_demo.txt");
-    }
+    string demo_path = resolve_data_file("avl_demo.txt");
+    ifstream input(demo_path.c_str());
     if (!input.is_open()) {
         cout << "[ATC Error] Could not open avl_demo.txt - using built-in demo."
              << endl;
